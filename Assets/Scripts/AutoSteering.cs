@@ -4,33 +4,33 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class AutoSteering : MonoBehaviour {
-	
-	[SerializeField] int carCount;
-	[SerializeField] bool spawnAtPoint;
-	[SerializeField] GameObject spawnsParent;
 
-	[SerializeField] GameObject firstTrigger;
+	[Space(10)]
+	[SerializeField] private int carCount;
+	[SerializeField] private bool spawnAtPoint;
+	[SerializeField] private GameObject spawnsParent;
+	[SerializeField] private GameObject prefab;
+	[SerializeField] private GameObject firstTrigger;
 
-	[SerializeField] GameObject prefab;
-	[SerializeField] int[] hiddenLayerSizes;
+	[Space(10)]
+	[SerializeField] private int[] hiddenLayerSizes;
 
-	[SerializeField] float eliminationPercentage = 0.8f;
+	[Space(10)]
+	[SerializeField] private float mutationMagnitude = 1;
+	[SerializeField] private float heavyMutationRate = 0.1f;
+	[SerializeField] private float heavyMutationMultiplier = 10;
 
-	[SerializeField] float mutationMagnitude;
-	[SerializeField] float heavyMutationRate = 0.03f;
-	[SerializeField] float heavyMutationMultiplier = 10;
+	[Space(10)]
+	[SerializeField] private float testTime;
+	[SerializeField] private float eliminationPercentage = 0.8f;
 
-	[SerializeField] float testTime;
+	[Space(10)]
+	[SerializeField] private float raycastDistance = 100.0f;
 
-	[SerializeField] float raycastDistance = 100.0f;
-	[SerializeField] float defaultRaycastDistance = 100.0f;
+	private Transform[] spawns;
+	private List<GameObject> carList;
 
-	[SerializeField] float timeScale = 1;
-	
-	Transform[] spawns;
-	List<GameObject> carList;
-
-	int generationNumber = 0;
+	private int generationNumber = 0;
 
 	float FastSigmoid(float x)
 	{
@@ -42,15 +42,16 @@ public class AutoSteering : MonoBehaviour {
 		if (spawnAtPoint)
 		{
 			spawns = new Transform[carCount];
+
 			for (int i = 0; i < spawns.Length; i++)
-			{
 				spawns[i] = spawnsParent.transform;
-			}
 		}
 		else
 		{
-			// To make sure the parent tranform isn't included
+			// To make sure the parent tranform isn't included we ignore the first element
 			Transform[] spawnsPlusParent = spawnsParent.GetComponentsInChildren<Transform>();
+
+			// And put it into separate array. Done once, so not horrible
 			spawns = new Transform[spawnsPlusParent.Length - 1];
 			Array.Copy(spawnsPlusParent, 1, spawns, 0, spawnsPlusParent.Length - 1);
 		}
@@ -62,8 +63,7 @@ public class AutoSteering : MonoBehaviour {
 			Debug.LogError("Not enough car spawns! Adjusting number of cars.");
 			carCount = spawns.Length;
 		}
-
-		Time.timeScale = Math.Abs(timeScale);
+		
 		StartCoroutine("LearningLoop");
 	}
 
@@ -81,21 +81,8 @@ public class AutoSteering : MonoBehaviour {
 	{
 		if (carList == null || carList.Count == 0)
 		{
-			// Instantiates car GOs and their Car compontnts
-			// Searches from 1 to not take the Transform of parent
 			for (int i = 0; i < carCount; i++)
-			{
-				GameObject newCar = Instantiate(prefab, spawns[i].position, spawns[i].rotation);
-				Car newCarComp = newCar.AddComponent<Car>();
-
-				newCarComp.Initialize(hiddenLayerSizes, FastSigmoid, firstTrigger);
-				newCarComp.nextTrigger = firstTrigger;
-
-				newCarComp.raycastDistance = raycastDistance;
-				newCarComp.defaultDistance = defaultRaycastDistance;
-
-				carList.Add(newCar);
-			}
+				carList.Add(SpawnCar(spawns[i]));
 		}
 		else
 		{
@@ -143,38 +130,37 @@ public class AutoSteering : MonoBehaviour {
 			// Reset position
 			carList[i].transform.position = spawns[spawnIdx].position;
 			carList[i].transform.rotation = spawns[spawnIdx].rotation;
+
 			// Reset points
-			carList[i].GetComponent<RoofCounters>().ResetPoints(firstTrigger);
-			carList[i].GetComponent<Car>().nextTrigger = firstTrigger;
+			carList[i].GetComponent<PointCounter>().ResetPoints(firstTrigger);
+			carList[i].GetComponent<Car>().NextTrigger = firstTrigger;
 		}
 
 		int remaining = carList.Count;
 		for (int i = 0; carList.Count < carCount; i = (i + 1) % remaining, spawnIdx++)
 		{
-			GameObject newCar = Instantiate(prefab, spawns[spawnIdx].position, spawns[spawnIdx].rotation);
-			Car newCarComp = newCar.AddComponent<Car>();
+			float actualMutation = (UnityEngine.Random.value < heavyMutationRate) ?
+				mutationMagnitude * heavyMutationMultiplier :
+				mutationMagnitude;
 
-			float actualMutationMag;
-			if (UnityEngine.Random.Range(0.0f, 1.0f) < heavyMutationRate)
-				actualMutationMag = mutationMagnitude * heavyMutationMultiplier;
-			else
-				actualMutationMag = mutationMagnitude;
-
-			print($"original: {carList[i].GetComponent<Car>().WeightsSum()}, i = {i}");
-
-			newCarComp.Initialize(hiddenLayerSizes, FastSigmoid, firstTrigger, 
-				NeuralNet.Mutate(new NeuralNet(carList[i].GetComponent<Car>().nnet), actualMutationMag));
-
-			print($"new: {newCarComp.WeightsSum()}, i = {i}");
-
-			newCarComp.nextTrigger = firstTrigger;
-
-			newCarComp.raycastDistance = raycastDistance;
-			newCarComp.defaultDistance = defaultRaycastDistance;
-
-			carList.Add(newCar);
+			carList.Add(
+				SpawnCar(spawns[i], carList[i].GetComponent<Car>(), actualMutation));
 		}
 
 		return carList;
+	}
+
+	GameObject SpawnCar (Transform spawn, Car car = null, float mutationMagnitude = 0)
+	{
+		GameObject newCar = Instantiate(prefab, spawn.position, spawn.rotation);
+		Car newCarComp = newCar.AddComponent<Car>();
+
+		newCarComp.Initialize(hiddenLayerSizes, FastSigmoid, raycastDistance, firstTrigger, car);
+
+		// No point of mutating if magnitude == 0
+		if (mutationMagnitude != 0)
+			newCarComp.Mutate((float)mutationMagnitude);
+
+		return newCar;
 	}
 }
