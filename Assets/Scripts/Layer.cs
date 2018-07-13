@@ -28,7 +28,7 @@ public class Layer
 		activation = other.activation;
 	}
 
-	public Vector<float> ProcessArray(Vector<float> vector)
+	public Vector<float> ProcessLayer(Vector<float> vector)
 	{
 		var returnVal = vector * weights;
 		returnVal.Map(activation, returnVal, Zeros.Include);
@@ -36,25 +36,15 @@ public class Layer
 		return returnVal;
 	}
 
-	public float[] ProcessArray(float[] array)
+	public float[] ProcessLayer(float[] array)
 	{
-		return ProcessArray(Vector<float>.Build.DenseOfArray(array))
+		return ProcessLayer(Vector<float>.Build.DenseOfArray(array))
 			.ToArray();
 	}
 
-	public static Layer Mutate(Layer layer, float magnitude)
+	public void Mutate(float magnitude)
 	{
-		Layer returnVal = new Layer(layer);
-		returnVal.weights = returnVal.weights.Map((x) => UnityEngine.Random.Range(-magnitude, magnitude) + x, Zeros.Include);
-
-		return returnVal;
-	}
-
-	public static Layer Recombnine(Layer layer1, Layer layer2)
-	{
-		layer1.weights += layer2.weights;
-
-		return layer1;
+		weights = weights.Map((x) => UnityEngine.Random.Range(-magnitude, magnitude) + x, Zeros.Include);
 	}
 
 	public float Sum()

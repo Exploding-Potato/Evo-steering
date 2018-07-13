@@ -5,37 +5,36 @@ using UnityEngine;
 
 public class Car : MonoBehaviour
 {
-	public float raycastDistance = 100.0f;
-	public float defaultDistance = 100.0f;
-
-	[HideInInspector] public NeuralNet nnet;
-
-	public GameObject nextTrigger;
+	private CarSteering steering;
+	private new Rigidbody rigidbody;
 	
-	CarSteering steering;
-	new Rigidbody rigidbody;
+	private List<Transform> rays = new List<Transform>();
+	private float raycastDistance = 100.0f;
 
-	int rayCount;
-	int inputCount;
-	int outputCount;
-	List<Transform> rays = new List<Transform>();
+	private NeuralNet nnet;
+	private int inputCount;
+	private int outputCount;
+	private GameObject nextTrigger;
+
+	public GameObject NextTrigger
+	{
+		get { return nextTrigger; }
+		set { nextTrigger = value; GetComponent<PointCounter>().nextTrigger = value; }
+	}
 
 	private void Awake()
 	{
-		rigidbody = this.GetComponent<Rigidbody>();
+		rigidbody = GetComponent<Rigidbody>();
 		
-		// Adds transforms of all rays into a list
-		Transform rayContainer = this.transform.Find("Rays");
+		// Adds transforms of all active rays into a list
+		Transform rayContainer = transform.Find("Rays");
 		foreach (Transform rayTransform in rayContainer.transform)
-		{
 			if (rayTransform.gameObject.activeSelf)
 				rays.Add(rayTransform);
-		}
 
 		// Caches the inputCount and outputCount
-		rayCount = rayContainer.childCount;
-		inputCount = rayCount + 4;	//Rays, velicity, distance to next
-		outputCount = 2;    // Hardcoded: throttle (with brake), desiredAngle
+		inputCount = rays.Count + 3;	//Rays, speed, distance to next
+		outputCount = 2;				// Hardcoded: throttle (with brake), desiredAngle
 	}
 
 	public float WeightsSum()
@@ -43,10 +42,10 @@ public class Car : MonoBehaviour
 		return nnet.Sum();
 	}
 
-	public void Initialize(int[] hiddenLayerSizes, Func<float, float> activationFunction, GameObject firstTrigger, NeuralNet newNet = null)
+	public void Initialize(int[] hiddenLayerSizes, Func<float, float> activationFunction, float raycastDistance, GameObject firstTrigger, Car oldCar = null)
 	{
 		// Initializes a NeuralNet
-		if (newNet == null)
+		if (oldCar == null)
 		{
 			int[] layerSizes = new int[hiddenLayerSizes.Length + 2];
 			layerSizes[0] = inputCount;
@@ -57,45 +56,47 @@ public class Car : MonoBehaviour
 		}
 		else
 		{
-			nnet = newNet;
+			nnet = new NeuralNet(oldCar.nnet);
 		}
 
 		// Caches the CarSteering component
-		steering = this.GetComponent<CarSteering>();
+		steering = GetComponent<CarSteering>();
 
-		this.GetComponent<RoofCounters>().nextTrigger = firstTrigger;
+		NextTrigger = firstTrigger;
 	}
 
 	// Here be place for steering and other bullshit
 	void Update()
 	{
-		// Filling the intermediate array
-		// Rays, forward speed, sideways speed, bias
+		// Filling the intermediate array: rays, directions to next, forward speed
 		float[] inputs = new float[inputCount];
-		for (int i = 0; i < rayCount; i++)
+		for (int i = 0; i < rays.Count; i++)
 		{
 			RaycastHit hit;
-			if (Physics.Raycast(rays[i].position, rays[i].forward, out hit, raycastDistance, 1 << LayerMask.NameToLayer("Default")))
-				inputs[i] = hit.distance;
-			else
-				inputs[i] = defaultDistance;
+			// Yes, I'm using ternary operators. Bite me.
+			inputs[i] = Physics.Raycast(rays[i].position, rays[i].forward, out hit, raycastDistance, 1 << LayerMask.NameToLayer("Default")) ?
+				hit.distance : raycastDistance;
 		}
 
 		// To next trigger
 		Vector3 toNextTrigger = transform.InverseTransformDirection(rigidbody.position - nextTrigger.transform.position);
-		inputs[inputCount - 5] = toNextTrigger.y;
-		inputs[inputCount - 4] = toNextTrigger.z;
+		inputs[inputCount - 3] = toNextTrigger.y;
+		inputs[inputCount - 2] = toNextTrigger.z;
 
-		// Forward and sideways velocity 
-		inputs[inputCount - 3] = transform.InverseTransformDirection(rigidbody.velocity).z;
-		inputs[inputCount - 2] = transform.InverseTransformDirection(rigidbody.velocity).x;
-		
+		// Forward speed
+		inputs[inputCount - 1] = transform.InverseTransformDirection(rigidbody.velocity).z;
+
 		// Pass steering
 		steering.Steering = nnet.Predict(inputs);
 	}
 
 	public float Evaluate()
 	{
-		return this.GetComponent<RoofCounters>().Points;
+		return GetComponent<PointCounter>().Points;
+	}
+
+	public void Mutate (float magnitude)
+	{
+		nnet.Mutate(magnitude);
 	}
 }

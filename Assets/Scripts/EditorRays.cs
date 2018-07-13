@@ -8,7 +8,7 @@ public class EditorRays : MonoBehaviour {
 	List<Transform> rayTransforms = new List<Transform>();
 
 	// Use this for initialization
-	void Start () {
+	void Reset () {
 		Transform rayContainer = this.transform.Find("Rays");
 		foreach (Transform rayTransform in rayContainer.transform)
 		{

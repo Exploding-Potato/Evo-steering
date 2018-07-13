@@ -7,7 +7,7 @@ using UnityEngine;
 
 public class NeuralNet
 {
-	Layer[] layers;
+	private Layer[] layers;
 
 	public NeuralNet (int[] layerSizes, Func<float, float> activationFunction)
 	{
@@ -45,7 +45,7 @@ public class NeuralNet
 		{
 			// Network automatically appends the bias unit
 			input = Vector<float>.Build.DenseOfEnumerable(input.Append(1));
-			input = layer.ProcessArray(input);
+			input = layer.ProcessLayer(input);
 		}
 
 		return input;
@@ -57,25 +57,9 @@ public class NeuralNet
 			.ToArray();
 	}
 
-	public static NeuralNet Mutate(NeuralNet nnet, float magnitude)
+	public void Mutate(float magnitude)
 	{
-		for (int i = 0; i < nnet.layers.Length; i ++)
-			nnet.layers[i] = Layer.Mutate(nnet.layers[i], magnitude);
-
-		return nnet;
-	}
-
-	public static NeuralNet Recombnine(NeuralNet nnet1, NeuralNet nnet2)
-	{
-		for (int i = 0; i < nnet1.layers.Length; i ++)
-		{
-			if (nnet1.layers[i].Inputs != nnet2.layers[i].Inputs ||
-				nnet1.layers[i].Outputs != nnet2.layers[i].Outputs)
-				throw new ArgumentException("Recombined nnets are differentely sized");
-
-			nnet1.layers[i] = Layer.Recombnine(nnet1.layers[i], nnet2.layers[i]);
-		}
-
-		return nnet1;
+		foreach (Layer layer in layers)
+			layer.Mutate(magnitude);
 	}
 }
