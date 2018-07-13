@@ -38,6 +38,11 @@ public class Car : MonoBehaviour
 		outputCount = 2;    // Hardcoded: throttle (with brake), desiredAngle
 	}
 
+	public float WeightsSum()
+	{
+		return nnet.Sum();
+	}
+
 	public void Initialize(int[] hiddenLayerSizes, Func<float, float> activationFunction, GameObject firstTrigger, NeuralNet newNet = null)
 	{
 		// Initializes a NeuralNet

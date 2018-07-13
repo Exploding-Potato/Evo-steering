@@ -114,23 +114,23 @@ public class AutoSteering : MonoBehaviour {
 
 	private List<GameObject> Evaluate(List<GameObject> carList)
 	{
-		// Sorting
+		// Sorting in ascending order
 		carList.Sort((car1, car2) =>
-			car1.GetComponent<Car>().Evaluate().CompareTo(
-			car2.GetComponent<Car>().Evaluate()));
-
+			car2.GetComponent<Car>().Evaluate().CompareTo(
+			car1.GetComponent<Car>().Evaluate()));
+		
 		// Removal
-		int count = carList.Count;
-		while (carList.Count > count * Mathf.Clamp01(eliminationPercentage))
+		int remainingCars = (int)(carList.Count * (1 - Mathf.Clamp01(eliminationPercentage)));
+		while (carList.Count > remainingCars)
 		{
 			// Temporary handle
-			var temp = carList[0];
+			var temp = carList[remainingCars];
 			// From the list
-			carList.RemoveAt(0);
+			carList.RemoveAt(remainingCars);
 			// From the world
 			Destroy(temp);
 		}
-
+		
 		return carList;
 	}
 
@@ -147,10 +147,11 @@ public class AutoSteering : MonoBehaviour {
 			carList[i].GetComponent<RoofCounters>().ResetPoints(firstTrigger);
 			carList[i].GetComponent<Car>().nextTrigger = firstTrigger;
 		}
-		
-		for (int i = carList.Count - 1; carList.Count < carCount; i--, spawnIdx++)
+
+		int remaining = carList.Count;
+		for (int i = 0; carList.Count < carCount; i = (i + 1) % remaining, spawnIdx++)
 		{
-			GameObject newCar = Instantiate(prefab, spawns[i].position, spawns[i].rotation);
+			GameObject newCar = Instantiate(prefab, spawns[spawnIdx].position, spawns[spawnIdx].rotation);
 			Car newCarComp = newCar.AddComponent<Car>();
 
 			float actualMutationMag;
@@ -159,8 +160,12 @@ public class AutoSteering : MonoBehaviour {
 			else
 				actualMutationMag = mutationMagnitude;
 
+			print($"original: {carList[i].GetComponent<Car>().WeightsSum()}, i = {i}");
+
 			newCarComp.Initialize(hiddenLayerSizes, FastSigmoid, firstTrigger, 
-				NeuralNet.Mutate(carList[i].GetComponent<Car>().nnet, actualMutationMag));
+				NeuralNet.Mutate(new NeuralNet(carList[i].GetComponent<Car>().nnet), actualMutationMag));
+
+			print($"new: {newCarComp.WeightsSum()}, i = {i}");
 
 			newCarComp.nextTrigger = firstTrigger;
 
@@ -169,7 +174,7 @@ public class AutoSteering : MonoBehaviour {
 
 			carList.Add(newCar);
 		}
-		
+
 		return carList;
 	}
 }

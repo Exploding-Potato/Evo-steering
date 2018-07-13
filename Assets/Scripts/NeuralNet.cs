@@ -14,7 +14,7 @@ public class NeuralNet
 		// "First" layer isn't a Layer object
 		// So layers has only layerSizes.Count-1 elements
 		layers = new Layer[layerSizes.Length - 1];
-		for (int i = 0; i < layerSizes.Length - 1; i++)
+		for (int i = 0; i < layers.Length; i++)
 		{
 			layers[i] = new Layer(
 				// To account for the bias unit
@@ -22,6 +22,13 @@ public class NeuralNet
 				layerSizes[i + 1],
 				activationFunction);
 		}
+	}
+
+	public NeuralNet (NeuralNet other)
+	{
+		layers = new Layer[other.layers.Length];
+		for (int i = 0; i < layers.Length; i++)
+			layers[i] = new Layer(other.layers[i]);
 	}
 
 	public float Sum()

@@ -12,14 +12,20 @@ public class Layer
 
 	Func<float, float> activation;
 
-	public float Inputs { get { return weights.RowCount; } }
-	public float Outputs { get { return weights.ColumnCount; } }
+	public int Inputs { get { return weights.RowCount; } }
+	public int Outputs { get { return weights.ColumnCount; } }
 
 	public Layer(int inputNeurons, int outputNeurons, Func<float, float> activationFunction)
 	{
 		weights = Matrix<float>.Build.Random(inputNeurons, outputNeurons);
 
 		activation = new Func<float, float>(activationFunction);
+	}
+
+	public Layer(Layer other)
+	{
+		weights = Matrix<float>.Build.DenseOfMatrix(other.weights);
+		activation = other.activation;
 	}
 
 	public Vector<float> ProcessArray(Vector<float> vector)
@@ -38,9 +44,10 @@ public class Layer
 
 	public static Layer Mutate(Layer layer, float magnitude)
 	{
-		layer.weights = layer.weights.Map((x) => UnityEngine.Random.Range(-magnitude, magnitude) + x, Zeros.Include);
+		Layer returnVal = new Layer(layer);
+		returnVal.weights = returnVal.weights.Map((x) => UnityEngine.Random.Range(-magnitude, magnitude) + x, Zeros.Include);
 
-		return layer;
+		return returnVal;
 	}
 
 	public static Layer Recombnine(Layer layer1, Layer layer2)
