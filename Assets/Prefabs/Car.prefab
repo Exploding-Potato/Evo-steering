@@ -1206,9 +1206,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c9af5948c2abfb6448d16613a49f89bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pointsIncrease: 10
+  pointsPerCheckpoint: 10
+  crashPenalty: 0
   pointTriggerDistance: 40
-  pointPenalty: 1
   nextTrigger: {fileID: 0}
 --- !u!136 &136565795517373594
 CapsuleCollider:

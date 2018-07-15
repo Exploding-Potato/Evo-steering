@@ -99,4 +99,12 @@ public class Car : MonoBehaviour
 	{
 		nnet.Mutate(magnitude);
 	}
+
+	public void Reset(Transform transform)
+	{
+		rigidbody.position = transform.position;
+		rigidbody.rotation = transform.rotation;
+
+		rigidbody.velocity = new Vector3();
+	}
 }

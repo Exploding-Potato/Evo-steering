@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class AutoSteering : MonoBehaviour {
 
@@ -27,10 +28,45 @@ public class AutoSteering : MonoBehaviour {
 	[Space(10)]
 	[SerializeField] private float raycastDistance = 100.0f;
 
+	[Space(10)]
+	[SerializeField] private GameObject generationInfo;
+	[SerializeField] private GameObject MutationRateSlider;
+	[SerializeField] private GameObject MutationRateText;
+	[SerializeField] private GameObject HeavyMutationRateField;
+	[SerializeField] private GameObject HeavyMutationMultiplierField;
+
 	private Transform[] spawns;
 	private List<GameObject> carList;
 
 	private int generationNumber = 0;
+	private Text generationInfoText;
+
+	private int maxScore = 0;
+
+	public float LogarithmicMutatioRate
+	{
+		set
+		{
+			mutationMagnitude = (float)Math.Pow(10, value / 2);
+			MutationRateText.GetComponent<Text>().text = $"Mutation magmitude: {mutationMagnitude:0.00}";
+		}
+	}
+
+	public string HeavyMutationRate
+	{
+		set
+		{
+			Single.TryParse(value, out heavyMutationRate);
+		}
+	}
+
+	public string HeavyMutationMultiplier
+	{
+		set
+		{
+			Single.TryParse(value, out heavyMutationMultiplier);
+		}
+	}
 
 	float FastSigmoid(float x)
 	{
@@ -39,6 +75,12 @@ public class AutoSteering : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
+
+		generationInfoText = generationInfo.GetComponent<Text>();
+		LogarithmicMutatioRate = MutationRateSlider.GetComponent<Slider>().value;
+		HeavyMutationRate = HeavyMutationRateField.GetComponent<InputField>().text;
+		HeavyMutationMultiplier = HeavyMutationMultiplierField.GetComponent<InputField>().text;
+
 		if (spawnAtPoint)
 		{
 			spawns = new Transform[carCount];
@@ -92,10 +134,8 @@ public class AutoSteering : MonoBehaviour {
 			// Recreation
 			carList = Refill(carList, spawns, carCount);
 		}
-
-		print($"Starting evaluating generation {generationNumber}");
+		
 		yield return new WaitForSeconds(testTime);
-		print($"Evaluating generation {generationNumber} has finished");
 
 	}
 
@@ -105,7 +145,10 @@ public class AutoSteering : MonoBehaviour {
 		carList.Sort((car1, car2) =>
 			car2.GetComponent<Car>().Evaluate().CompareTo(
 			car1.GetComponent<Car>().Evaluate()));
-		
+
+		maxScore = Math.Max(maxScore, (int)carList[0].GetComponent<Car>().Evaluate());
+		generationInfoText.text = $"Generation {generationNumber} - max score: {carList[0].GetComponent<Car>().Evaluate()}, best score: {maxScore}";
+
 		// Removal
 		int remainingCars = (int)(carList.Count * (1 - Mathf.Clamp01(eliminationPercentage)));
 		while (carList.Count > remainingCars)
@@ -128,8 +171,7 @@ public class AutoSteering : MonoBehaviour {
 		for (int i = 0; i < carList.Count; i++, spawnIdx++)
 		{
 			// Reset position
-			carList[i].transform.position = spawns[spawnIdx].position;
-			carList[i].transform.rotation = spawns[spawnIdx].rotation;
+			carList[i].GetComponent<Car>().Reset(spawns[i]);
 
 			// Reset points
 			carList[i].GetComponent<PointCounter>().ResetPoints(firstTrigger);
